@@ -862,16 +862,14 @@ class CameraGalleryCard extends LitElement {
 
       if (usingMediaSource) {
         const want = [];
-        const hasBrowseThumb = (src) => {
-          const meta = this._msMetaById(src);
-          return !!String(meta?.thumb || "").trim();
-        };
-        const needsVideoResolveForThumb = (src) => {
+        const needsResolveForThumb = (src) => {
           if (!src || src === selectedSrc) return false;
           if (this._ms.urlCache.has(src) || this._msResolveFailed.has(src)) return false;
           const meta = this._msMetaById(src);
+          const hasBrowseThumb = !!String(meta?.thumb || "").trim();
           const isVid = this._isVideoSmart(src || meta?.title || "", meta?.mime || "", meta?.cls || "");
-          return isVid && !hasBrowseThumb(src);
+          if (isVid && hasBrowseThumb) return false;
+          return this._msIsRenderable(meta?.mime || "", meta?.cls || "", meta?.title || src);
         };
 
         // Selected clip first (needed for preview)
@@ -903,7 +901,7 @@ class CameraGalleryCard extends LitElement {
         }
 
         for (const src of visibleThumbIds) {
-          if (needsVideoResolveForThumb(src)) want.push(src);
+          if (needsResolveForThumb(src)) want.push(src);
         }
 
         if (want.length) {
@@ -2463,9 +2461,16 @@ class CameraGalleryCard extends LitElement {
       }
     }
 
-    // Prefer Home Assistant's browse_media thumbnail directly when provided.
-    // Only fall back to generated posters when no thumbnail is available.
-    if (tThumb) return tThumb;
+    // Prefer browse_media thumbnails over opening the video to capture a frame.
+    // Relative HA thumbnails may need a Bearer fetch, so keep the existing
+    // poster cache path for those instead of handing them straight to <img>.
+    if (tThumb) {
+      if (!tThumb.startsWith("/")) return tThumb;
+      const cached = this._posterCache.get(tThumb);
+      if (cached) return cached;
+      this._enqueuePoster(tThumb);
+      return "";
+    }
 
     // Paired thumbnail: same-stem jpg next to the mp4
     const pairedJpgId = this._ms?.pairedThumbs?.get(it.src);
@@ -4548,7 +4553,12 @@ class CameraGalleryCard extends LitElement {
                     // For unresolved MS images, use the browse_media thumbnail as fallback
                     // so the thumbnail appears immediately while the full URL is still resolving
                     if (!isVid && !poster && isMs && tThumb) {
-                      poster = tThumb;
+                      if (tThumb.startsWith("/")) {
+                        poster = this._posterCache.get(tThumb) || "";
+                        if (!poster) this._enqueuePoster(tThumb);
+                      } else {
+                        poster = tThumb;
+                      }
                     }
 
                     const needsResolve = isMs;
