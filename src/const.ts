@@ -139,6 +139,7 @@ export const DEFAULT_PER_ROOT_MIN_LIMIT = 40;
 export const DEFAULT_PREVIEW_CLOSE_ON_TAP_WHEN_GATED = true;
 export const DEFAULT_PREVIEW_POSITION = "top" satisfies PreviewPosition;
 export const DEFAULT_RESOLVE_BATCH = 32;
+export const DEFAULT_MS_RESOLVE_CONCURRENCY = 2;
 export const DEFAULT_SOURCE_MODE = "sensor" satisfies SourceMode;
 export const DEFAULT_THUMB_BAR_POSITION = "bottom" satisfies ThumbBarPosition;
 export const DEFAULT_THUMB_LAYOUT = "horizontal" satisfies ThumbLayout;
